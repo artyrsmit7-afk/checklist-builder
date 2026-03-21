@@ -290,8 +290,8 @@
     <h3>➕ Добавить систему</h3>
     <select id="systemPresetSelect" class="form-input form-select" style="border-radius:12px;margin-bottom:.8rem">
       <option>СПС</option><option>СОУЭ</option><option>СПДВ</option><option>ВПВ</option>
-      <option>АПТ</option><option>ОВ</option><option>ВК</option><option>ЭС</option>
-      <option>Слаботочные</option><option>АСУ</option><option>Другое</option>
+      <option>АУПТ</option><option>АУВПТ</option><option>АОВ</option><option>СПА</option>
+      <option>Другое</option>
     </select>
     <input id="newSystemCustomName" class="form-input" style="display:none;border-radius:12px;margin-bottom:.8rem" placeholder="Своё название">
     <div class="flex-row">
@@ -402,9 +402,9 @@ document.getElementById('createNewBtn').addEventListener('click', ()=>{ resetWiz
 // ══════════════════════════════════════════
 //  WIZARD
 // ══════════════════════════════════════════
-const ALL_SYSTEMS = ['СПС','СОУЭ','СПДВ','ВПВ','АПТ','ОВ','ВК','ЭС','Слаботочные','АСУ'];
-const ALL_ROOMS   = ['ИТП','Электрощитовая','Водомерный узел','ГРП','Тепловой узел','Насосная станция','Серверная'];
-const ALL_GLOBAL  = ['Кровля','Фасад','МОП','Парковка','Подвал (общий)'];
+const ALL_SYSTEMS = ['СПС','СОУЭ','СПДВ','ВПВ','АУПТ','АУВПТ','АОВ','СПА'];
+const ALL_ROOMS   = ['Мусоросборная камера','ГРЩ','Кабельная','Подвал','Тех. этаж','Машинное помещение','Автоматика СПДВ','Встроенные пом.','Водомер','ПНС'];
+const ALL_GLOBAL  = ['Проектная документация','Общие требования к ИД','Общие замечания'];
 
 let wState = { step:1, zones:[], selSys:['СПС','СОУЭ','СПДВ','ВПВ'], selRooms:[], selGlobal:[] };
 
@@ -456,10 +456,18 @@ function renderChipsStep3() {
     <label class="room-chip ${wState.selGlobal.includes(g)?'selected':''}">
       <input type="checkbox" ${wState.selGlobal.includes(g)?'checked':''} onchange="toggleArr(wState.selGlobal,'${g}',this.checked);this.closest('.room-chip').classList.toggle('selected',this.checked)">
       ${g}
-    </label>`).join('');
+    </label>`).join('')
+  + `<div style="display:flex;gap:.4rem;margin-top:.4rem;flex-wrap:wrap;width:100%">
+      <input id="customSysInput" class="form-input" style="flex:1;min-width:120px;border-radius:8px;padding:.3rem .7rem;font-size:.82rem" placeholder="Своя система...">
+      <button class="btn" style="font-size:.78rem" onclick="addCustomSys()">➕</button>
+      <input id="customRoomInput" class="form-input" style="flex:1;min-width:120px;border-radius:8px;padding:.3rem .7rem;font-size:.82rem" placeholder="Своё помещение...">
+      <button class="btn" style="font-size:.78rem" onclick="addCustomRoom()">➕</button>
+    </div>`;
 }
 
 function toggleArr(arr,val,add) { if(add){if(!arr.includes(val))arr.push(val);}else{const i=arr.indexOf(val);if(i>=0)arr.splice(i,1);} }
+function addCustomSys(){const v=document.getElementById('customSysInput')?.value.trim();if(!v)return;if(!wState.selSys.includes(v))wState.selSys.push(v);document.getElementById('customSysInput').value='';renderChipsStep3();}
+function addCustomRoom(){const v=document.getElementById('customRoomInput')?.value.trim();if(!v)return;if(!wState.selRooms.includes(v))wState.selRooms.push(v);document.getElementById('customRoomInput').value='';renderChipsStep3();}
 
 document.getElementById('addZoneBtn').addEventListener('click',()=>{
   wState.zones.push({name:`Секция ${wState.zones.length+1}`,from:1,to:9});
@@ -509,10 +517,12 @@ function buildAndSaveChecklist() {
         }))
       };
     }),
-    globalChecklists: wState.selGlobal.map(g=>({
-      id: uid(), title: g,
-      items: [{id:uid(),name:'Общий осмотр',comment:'',checked:false},{id:uid(),name:'Замечания',comment:'',checked:false}]
-    }))
+    globalChecklists: (()=>{
+      const defs={'Проектная документация':['наличие на объекте полного комплекта','шифр проекта','наименование проектной организации','дата проекта','Ф. И. О. проектировщика','дата ввода систем в эксплуатацию'],'Общие требования к ИД (ГОСТ Р 21.101-2020)':['Наличие Содержания и реестра','Обеспечение целостности и неизменности комплекта','Правильное оформление штампов и заверений','Наличие общего реестра по объекту'],'Общие замечания':['ведение документации (журналы, инструктажи, приказы)','замечания к проектной документации','испытания ограждения кровли и бирки','последние аэродинамические испытания СПДВ','последние испытания на водоотдачу','последние испытания АУПТ','план эвакуации (автостоянка)','изменение планировки (зоны не оснащённые СПЗ)','содержание помещений в соответствии с назначением и их категории пож. опасности','содержание путей эвакуаций и аварийных выходов','заделка ОМ мест проходов кабельных трасс и инж. коммуникаций','Осмотр ОКЛ (мест коммутации/маркировка/отсутствие провисаний)','фиксация неисправностей и отключений на пультах','Список неисправных квартир','Список неисправных коммерций','Осмотр БРП и АКБ']};
+      const result=Object.entries(defs).map(([title,items])=>({id:uid(),title,items:items.map(n=>({id:uid(),name:n,comment:'',checked:false}))}));
+      wState.selGlobal.filter(g=>!Object.keys(defs).includes(g)).forEach(g=>{result.push({id:uid(),title:g,items:[{id:uid(),name:'Осмотр',comment:'',checked:false}]});});
+      return result;
+    })()
   };
   saveCL(cl);
   showView('dashboard');
@@ -603,7 +613,7 @@ function renderAll(filter='') {
       });
       cd.appendChild(ft);
       const ul=document.createElement('ul'); ul.className='systems-list';
-      floor.systems.forEach(sys=>ul.appendChild(createSysItem(sys)));
+      floor.systems.forEach(sys=>ul.appendChild(createSysItem(sys, floor)));
       cd.appendChild(ul);
       const addS=document.createElement('button'); addS.className='button button--small'; addS.innerHTML='➕ Систему';
       addS.addEventListener('click',()=>{ currentZoneId=zone.id; currentFloorRef=floor; showModal('addSystemModal'); });
@@ -617,7 +627,7 @@ function renderAll(filter='') {
         const card=document.createElement('div'); card.className='object-info-card';
         card.innerHTML=`<span class="info-label">${room.label}</span>`;
         const ul=document.createElement('ul'); ul.className='systems-list';
-        room.systems.forEach(sys=>ul.appendChild(createSysItem(sys)));
+        room.systems.forEach(sys=>ul.appendChild(createSysItem(sys, room)));
         card.appendChild(ul);
         const db=document.createElement('span'); db.className='delete-btn'; db.innerHTML='🗑️'; db.style.float='right';
         db.addEventListener('click',e=>{
@@ -651,7 +661,7 @@ function renderAll(filter='') {
     block.appendChild(hdr);
     const cd2=document.createElement('div'); cd2.className='checklist__content'+(isC?' collapsed':'');
     const ul=document.createElement('ul'); ul.className='systems-list';
-    global.items.forEach(sys=>ul.appendChild(createSysItem(sys)));
+    global.items.forEach(sys=>ul.appendChild(createSysItem(sys, global)));
     cd2.appendChild(ul);
     const addP=document.createElement('button'); addP.className='button button--small'; addP.innerHTML='➕ Пункт';
     addP.addEventListener('click',()=>{ global.items.push({id:uid(),name:'Новый пункт',comment:'',checked:false}); saveEditorState();renderAll(document.getElementById('edSearch').value); });
@@ -662,7 +672,7 @@ function renderAll(filter='') {
   updateStats();
 }
 
-function createSysItem(sys) {
+function createSysItem(sys, parent) {
   const li=document.createElement('li'); li.className='systems-list__item';
   const row=document.createElement('div'); row.className='system-row';
 
@@ -680,7 +690,12 @@ function createSysItem(sys) {
   });
   const delBtn=document.createElement('span'); delBtn.className='delete-btn'; delBtn.title='Удалить'; delBtn.innerHTML='🗑️';
   delBtn.addEventListener('click',()=>{
-    if(confirm(`Удалить "${sys.name}"?`)){ li.remove(); /* Note: this won't update the data model properly */ }
+    if(confirm(`Удалить "${sys.name}"?`)){
+      // Remove from parent array
+      if(Array.isArray(parent?.systems)){const i=parent.systems.indexOf(sys);if(i>=0)parent.systems.splice(i,1);}
+      else if(Array.isArray(parent?.items)){const i=parent.items.indexOf(sys);if(i>=0)parent.items.splice(i,1);}
+      li.remove(); saveEditorState(); updateStats();
+    }
   });
 
   row.append(cb,lbl,editBtn,delBtn);
